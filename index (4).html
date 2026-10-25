@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🇹🇼 繁體中文句型學習 - 語音播放器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
+
+    <!-- 頂部導覽列 -->
+    <header class="bg-teal-700 text-white shadow-md sticky top-0 z-50 p-4 text-center font-bold text-lg flex justify-between items-center px-6">
+        <span class="flex items-center gap-2">🇹🇼 繁體中文 A2–B1 核心句型聽力跟讀播放器 (100 句對照版)</span>
+        <span id="voiceStatus" class="text-xs bg-teal-800 px-3 py-1 rounded-full font-normal">語音引擎載入中...</span>
+    </header>
+
+    <!-- 主要內容區 -->
+    <main class="max-w-4xl mx-auto px-4 py-8 flex-grow w-full space-y-6">
+        
+        <!-- 控制面板 -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-900">🇹🇼 繁體中文日常與故事句型隨身聽 (100 句全收錄)</h1>
+                    <p class="text-sm text-slate-500 mt-1">含繁體中文 (Taiwan)、拼音對照與英文翻譯註解</p>
+                </div>
+                <!-- 語速選擇 -->
+                <div class="flex items-center space-x-2">
+                    <label class="text-sm font-medium text-slate-600">朗讀語速：</label>
+                    <select id="rateSelect" class="border rounded-lg px-3 py-1.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                        <option value="0.5">0.5x (慢速跟讀)</option>
+                        <option value="0.75" selected>0.75x (推薦練習)</option>
+                        <option value="1.0">1.0x (自然語速)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 控制按鈕 -->
+            <div class="flex flex-wrap gap-3 pt-3 border-t border-slate-100 items-center">
+                <button onclick="startAutoplay()" id="btn-play" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-sm transition flex items-center gap-2">
+                    ▶ 開始全自動「中文+英文」接續朗讀
+                </button>
+                <button onclick="pauseAudio()" class="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition">
+                    ⏸ 暫停
+                </button>
+                <button onclick="stopAudio()" class="px-4 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl font-medium transition">
+                    ⏹ 停止
+                </button>
+
+                <!-- 單句重複切換 -->
+                <div class="ml-auto flex items-center space-x-2 text-sm text-slate-600">
+                    <label class="flex items-center space-x-1.5 cursor-pointer select-none">
+                        <input type="checkbox" id="repeatOneCheck" class="rounded text-teal-600 focus:ring-teal-500 w-4 h-4">
+                        <span class="font-medium">單句無限重複</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 搜尋列 -->
+        <div class="flex gap-4">
+            <input type="text" id="searchInput" oninput="filterSentences()" placeholder="🔍 搜尋中文、拼音、英文或句型主題..." class="w-full px-4 py-2.5 border rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-teal-500 outline-none text-sm">
+        </div>
+
+        <!-- 句子列表 -->
+        <div id="sentenceList" class="space-y-4">
+            <!-- 由 JavaScript 動態生成 -->
+        </div>
+
+    </main>
+
+    <!-- 底部固定播放控制列 -->
+    <footer class="bg-white border-t border-slate-200 shadow-lg sticky bottom-0 z-40 py-3 px-6">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <div class="text-sm truncate pr-4">
+                <span class="text-slate-400">目前播放：</span>
+                <span id="currentPlayingText" class="font-bold text-teal-700">準備就緒，請點擊上方綠色播放鍵開始</span>
+            </div>
+            <div class="space-x-2 shrink-0">
+                <button onclick="prevSentence()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition">上一句</button>
+                <button onclick="nextSentence()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition">下一句</button>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // 資料庫：包含 txt 中的全部 100 句
+        const rawSentences = [{"id": 1, "zh": "我想去看看。", "py": "Wǒ xiǎng qù kànkan.", "en": "I'd like to go and have a look.", "sec": "01 · 我想 + 動詞        wǒ xiǎng + verb"}, {"id": 2, "zh": "我想問你一件事。", "py": "Wǒ xiǎng wèn nǐ yí jiàn shì.", "en": "I'd like to ask you something.", "sec": "01 · 我想 + 動詞        wǒ xiǎng + verb"}, {"id": 3, "zh": "我想試試看。", "py": "Wǒ xiǎng shìshi kàn.", "en": "I'd like to give it a try.", "sec": "01 · 我想 + 動詞        wǒ xiǎng + verb"}, {"id": 4, "zh": "我不想太晚回家。", "py": "Wǒ bù xiǎng tài wǎn huíjiā.", "en": "I don't want to get home too late.", "sec": "01 · 我想 + 動詞        wǒ xiǎng + verb"}, {"id": 5, "zh": "你想吃什麼？", "py": "Nǐ xiǎng chī shénme?", "en": "What would you like to eat?", "sec": "01 · 我想 + 動詞        wǒ xiǎng + verb"}, {"id": 6, "zh": "可以幫我一下嗎？", "py": "Kěyǐ bāng wǒ yíxià ma?", "en": "Could you help me for a second?", "sec": "02 · 可以…嗎？        kěyǐ … ma?"}, {"id": 7, "zh": "可以坐這裡嗎？", "py": "Kěyǐ zuò zhèlǐ ma?", "en": "May I sit here?", "sec": "02 · 可以…嗎？        kěyǐ … ma?"}, {"id": 8, "zh": "我可以問一下嗎？", "py": "Wǒ kěyǐ wèn yíxià ma?", "en": "May I ask something?", "sec": "02 · 可以…嗎？        kěyǐ … ma?"}, {"id": 9, "zh": "這裡可以拍照嗎？", "py": "Zhèlǐ kěyǐ pāizhào ma?", "en": "Can I take photos here?", "sec": "02 · 可以…嗎？        kěyǐ … ma?"}, {"id": 10, "zh": "不好意思，可以借過嗎？", "py": "Bù hǎoyìsi, kěyǐ jièguò ma?", "en": "Excuse me, may I get past?", "sec": "02 · 可以…嗎？        kěyǐ … ma?"}, {"id": 11, "zh": "你有沒有時間？", "py": "Nǐ yǒu méi yǒu shíjiān?", "en": "Do you have time?", "sec": "03 · 有沒有 / 是不是        yǒu méi yǒu / shì bú shì"}, {"id": 12, "zh": "這個是不是你的？", "py": "Zhège shì bú shì nǐ de?", "en": "Is this yours or not?", "sec": "03 · 有沒有 / 是不是        yǒu méi yǒu / shì bú shì"}, {"id": 13, "zh": "我們明天去，好不好？", "py": "Wǒmen míngtiān qù, hǎo bù hǎo?", "en": "Shall we go tomorrow, yes or no?", "sec": "03 · 有沒有 / 是不是        yǒu méi yǒu / shì bú shì"}, {"id": 14, "zh": "你要不要一起來？", "py": "Nǐ yào bú yào yìqǐ lái?", "en": "Do you want to come along?", "sec": "03 · 有沒有 / 是不是        yǒu méi yǒu / shì bú shì"}, {"id": 15, "zh": "可不可以晚一點？", "py": "Kě bù kěyǐ wǎn yìdiǎn?", "en": "Could we make it a bit later?", "sec": "03 · 有沒有 / 是不是        yǒu méi yǒu / shì bú shì"}, {"id": 16, "zh": "太貴了，我買不起。", "py": "Tài guì le, wǒ mǎi bù qǐ.", "en": "It's too expensive, I can't afford it.", "sec": "04 · 太…了        tài … le"}, {"id": 17, "zh": "太好了！", "py": "Tài hǎo le!", "en": "That's great!", "sec": "04 · 太…了        tài … le"}, {"id": 18, "zh": "這裡太吵了。", "py": "Zhèlǐ tài chǎo le.", "en": "It's too noisy here.", "sec": "04 · 太…了        tài … le"}, {"id": 19, "zh": "不會太麻煩嗎？", "py": "Bú huì tài máfan ma?", "en": "Won't it be too much trouble?", "sec": "04 · 太…了        tài … le"}, {"id": 20, "zh": "今天真的太熱了。", "py": "Jīntiān zhēnde tài rè le.", "en": "It's really too hot today.", "sec": "04 · 太…了        tài … le"}, {"id": 21, "zh": "因為下雨，所以我們沒去。", "py": "Yīnwèi xiàyǔ, suǒyǐ wǒmen méi qù.", "en": "Because it rained, we didn't go.", "sec": "05 · 因為…所以…        yīnwèi … suǒyǐ …"}, {"id": 22, "zh": "因為太累了，所以我早點睡。", "py": "Yīnwèi tài lèi le, suǒyǐ wǒ zǎodiǎn shuì.", "en": "Because I was too tired, I went to bed early.", "sec": "05 · 因為…所以…        yīnwèi … suǒyǐ …"}, {"id": 23, "zh": "所以你才沒來？", "py": "Suǒyǐ nǐ cái méi lái?", "en": "So that's why you didn't come?", "sec": "05 · 因為…所以…        yīnwèi … suǒyǐ …"}, {"id": 24, "zh": "因為塞車，我遲到了。", "py": "Yīnwèi sāichē, wǒ chídào le.", "en": "Because of the traffic, I was late.", "sec": "05 · 因為…所以…        yīnwèi … suǒyǐ …"}, {"id": 25, "zh": "那是因為他不知道。", "py": "Nà shì yīnwèi tā bù zhīdào.", "en": "That's because he didn't know.", "sec": "05 · 因為…所以…        yīnwèi … suǒyǐ …"}, {"id": 26, "zh": "雖然很貴，可是很值得。", "py": "Suīrán hěn guì, kěshì hěn zhídé.", "en": "Although it's expensive, it's worth it.", "sec": "06 · 雖然…可是…        suīrán … kěshì …"}, {"id": 27, "zh": "雖然我很累，可是我還是去了。", "py": "Suīrán wǒ hěn lèi, kěshì wǒ háishì qù le.", "en": "Although I was tired, I still went.", "sec": "06 · 雖然…可是…        suīrán … kěshì …"}, {"id": 28, "zh": "雖然他不會說中文，可是他聽得懂。", "py": "Suīrán tā bú huì shuō Zhōngwén, kěshì tā tīng de dǒng.", "en": "Although he can't speak Chinese, he can understand it.", "sec": "06 · 雖然…可是…        suīrán … kěshì …"}, {"id": 29, "zh": "東西雖然不多，可是夠用。", "py": "Dōngxi suīrán bù duō, kěshì gòu yòng.", "en": "Although there isn't much, it's enough.", "sec": "06 · 雖然…可是…        suīrán … kěshì …"}, {"id": 30, "zh": "雖然這樣，我還是想試。", "py": "Suīrán zhèyàng, wǒ háishì xiǎng shì.", "en": "Even so, I still want to try.", "sec": "06 · 雖然…可是…        suīrán … kěshì …"}, {"id": 31, "zh": "如果你有空的話，就一起來吧。", "py": "Rúguǒ nǐ yǒu kòng de huà, jiù yìqǐ lái ba.", "en": "If you're free, come along.", "sec": "07 · 如果…的話，就…        rúguǒ … de huà, jiù …"}, {"id": 32, "zh": "如果下雨，我們就不去了。", "py": "Rúguǒ xiàyǔ, wǒmen jiù bú qù le.", "en": "If it rains, we won't go.", "sec": "07 · 如果…的話，就…        rúguǒ … de huà, jiù …"}, {"id": 33, "zh": "如果不行，再跟我說。", "py": "Rúguǒ bù xíng, zài gēn wǒ shuō.", "en": "If it doesn't work, tell me again.", "sec": "07 · 如果…的話，就…        rúguǒ … de huà, jiù …"}, {"id": 34, "zh": "要是我，我就不會這樣做。", "py": "Yàoshi shì wǒ, wǒ jiù bú huì zhèyàng zuò.", "en": "If it were me, I wouldn't do it this way.", "sec": "07 · 如果…的話，就…        rúguǒ … de huà, jiù …"}, {"id": 35, "zh": "有問題的話隨時找我。", "py": "Yǒu wèntí de huà suíshí zhǎo wǒ.", "en": "If there's a problem, come to me anytime.", "sec": "07 · 如果…的話，就…        rúguǒ … de huà, jiù …"}, {"id": 36, "zh": "我們先吃飯，再去看電影。", "py": "Wǒmen xiān chīfàn, zài qù kàn diànyǐng.", "en": "Let's eat first, then go to the cinema.", "sec": "08 · 先…再…然後…        xiān … zài … ránhòu …"}, {"id": 37, "zh": "你先看一下，然後再決定。", "py": "Nǐ xiān kàn yíxià, ránhòu zài juédìng.", "en": "Have a look first, then decide.", "sec": "08 · 先…再…然後…        xiān … zài … ránhòu …"}, {"id": 38, "zh": "先別急。", "py": "Xiān bié jí.", "en": "Don't rush just yet.", "sec": "08 · 先…再…然後…        xiān … zài … ránhòu …"}, {"id": 39, "zh": "我洗完澡再跟你說。", "py": "Wǒ xǐ wán zǎo zài gēn nǐ shuō.", "en": "I'll tell you after I've showered.", "sec": "08 · 先…再…然後…        xiān … zài … ránhòu …"}, {"id": 40, "zh": "最後我們還是去了。", "py": "Zuìhòu wǒmen háishì qù le.", "en": "In the end we went anyway.", "sec": "08 · 先…再…然後…        xiān … zài … ránhòu …"}, {"id": 41, "zh": "他一邊吃飯一邊看手機。", "py": "Tā yìbiān chīfàn yìbiān kàn shǒujī.", "en": "He eats while looking at his phone.", "sec": "09 · 一邊…一邊…        yìbiān … yìbiān …"}, {"id": 42, "zh": "我們一邊走一邊聊。", "py": "Wǒmen yìbiān zǒu yìbiān liáo.", "en": "We chatted as we walked.", "sec": "09 · 一邊…一邊…        yìbiān … yìbiān …"}, {"id": 43, "zh": "我喜歡一邊工作一邊聽音樂。", "py": "Wǒ xǐhuān yìbiān gōngzuò yìbiān tīng yīnyuè.", "en": "I like listening to music while I work.", "sec": "09 · 一邊…一邊…        yìbiān … yìbiān …"}, {"id": 44, "zh": "不要一邊開車一邊講電話。", "py": "Búyào yìbiān kāichē yìbiān jiǎng diànhuà.", "en": "Don't talk on the phone while driving.", "sec": "09 · 一邊…一邊…        yìbiān … yìbiān …"}, {"id": 45, "zh": "她一邊笑一邊說。", "py": "Tā yìbiān xiào yìbiān shuō.", "en": "She spoke and laughed at the same time.", "sec": "09 · 一邊…一邊…        yìbiān … yìbiān …"}, {"id": 46, "zh": "這家不但好吃，而且很便宜。", "py": "Zhè jiā búdàn hǎochī, érqiě hěn piányí.", "en": "This place is not only tasty, it's cheap too.", "sec": "10 · 不但…而且…        búdàn … érqiě …"}, {"id": 47, "zh": "他不但會說中文，還會寫。", "py": "Tā búdàn huì shuō Zhōngwén, hái huì xiě.", "en": "He can not only speak Chinese, he can write it too.", "sec": "10 · 不但…而且…        búdàn … érqiě …"}, {"id": 48, "zh": "不但沒幫忙，還添麻煩。", "py": "Búdàn méi bāngmáng, hái tiān máfan.", "en": "Not only did he not help, he caused trouble.", "sec": "10 · 不但…而且…        búdàn … érqiě …"}, {"id": 49, "zh": "這裡又近又方便。", "py": "Zhèlǐ yòu jìn yòu fāngbiàn.", "en": "This place is both close and convenient.", "sec": "10 · 不但…而且…        búdàn … érqiě …"}, {"id": 50, "zh": "除了這個以外，還有別的嗎？", "py": "Chúle zhège yǐwài, hái yǒu biéde ma?", "en": "Besides this one, are there others?", "sec": "10 · 不但…而且…        búdàn … érqiě …"}, {"id": 51, "zh": "天氣越來越熱了。", "py": "Tiānqì yuè lái yuè rè le.", "en": "The weather is getting hotter and hotter.", "sec": "11 · 越來越… / 越…越…        yuè lái yuè … / yuè … yuè …"}, {"id": 52, "zh": "我的中文越來越好了。", "py": "Wǒ de Zhōngwén yuè lái yuè hǎo le.", "en": "My Chinese is getting better and better.", "sec": "11 · 越來越… / 越…越…        yuè lái yuè … / yuè … yuè …"}, {"id": 53, "zh": "越想越覺得奇怪。", "py": "Yuè xiǎng yuè juéde qíguài.", "en": "The more I think about it, the stranger it seems.", "sec": "11 · 越來越… / 越…越…        yuè lái yuè … / yuè … yuè …"}, {"id": 54, "zh": "越早越好。", "py": "Yuè zǎo yuè hǎo.", "en": "The sooner the better.", "sec": "11 · 越來越… / 越…越…        yuè lái yuè … / yuè … yuè …"}, {"id": 55, "zh": "事情越來越複雜。", "py": "Shìqíng yuè lái yuè fùzá.", "en": "Things are getting more and more complicated.", "sec": "11 · 越來越… / 越…越…        yuè lái yuè … / yuè … yuè …"}, {"id": 56, "zh": "台北比這裡熱。", "py": "Táiběi bǐ zhèlǐ rè.", "en": "Taipei is hotter than here.", "sec": "12 · A 比 B + 形容詞        A bǐ B + adjective"}, {"id": 57, "zh": "這個比那個貴一點。", "py": "Zhège bǐ nàge guì yìdiǎn.", "en": "This one is a bit more expensive than that one.", "sec": "12 · A 比 B + 形容詞        A bǐ B + adjective"}, {"id": 58, "zh": "坐捷運比開車快。", "py": "Zuò jiéyùn bǐ kāichē kuài.", "en": "Taking the MRT is faster than driving.", "sec": "12 · A 比 B + 形容詞        A bǐ B + adjective"}, {"id": 59, "zh": "今天沒有昨天那麼冷。", "py": "Jīntiān méiyǒu zuótiān nàme lěng.", "en": "Today isn't as cold as yesterday.", "sec": "12 · A 比 B + 形容詞        A bǐ B + adjective"}, {"id": 60, "zh": "我覺得這個比較好。", "py": "Wǒ juéde zhège bǐjiào hǎo.", "en": "I think this one is better.", "sec": "12 · A 比 B + 形容詞        A bǐ B + adjective"}, {"id": 61, "zh": "我昨天去了夜市。", "py": "Wǒ zuótiān qù le yèshì.", "en": "I went to the night market yesterday.", "sec": "13 · 動詞 + 了        verb + le"}, {"id": 62, "zh": "我已經吃過飯了。", "py": "Wǒ yǐjīng chī guò fàn le.", "en": "I've already eaten.", "sec": "13 · 動詞 + 了        verb + le"}, {"id": 63, "zh": "他走了嗎？", "py": "Tā zǒu le ma?", "en": "Has he left?", "sec": "13 · 動詞 + 了        verb + le"}, {"id": 64, "zh": "我忘記帶錢包了。", "py": "Wǒ wàngjì dài qiánbāo le.", "en": "I forgot to bring my wallet.", "sec": "13 · 動詞 + 了        verb + le"}, {"id": 65, "zh": "下班了我就過去。", "py": "Xiàbān le wǒ jiù guòqù.", "en": "I'll head over once I finish work.", "sec": "13 · 動詞 + 了        verb + le"}, {"id": 66, "zh": "我去過台南兩次。", "py": "Wǒ qù guò Táinán liǎng cì.", "en": "I've been to Tainan twice.", "sec": "14 · 動詞 + 過        verb + guò"}, {"id": 67, "zh": "你吃過臭豆腐嗎？", "py": "Nǐ chī guò chòudòufu ma?", "en": "Have you ever eaten stinky tofu?", "sec": "14 · 動詞 + 過        verb + guò"}, {"id": 68, "zh": "我沒看過這部電影。", "py": "Wǒ méi kàn guò zhè bù diànyǐng.", "en": "I've never seen this film.", "sec": "14 · 動詞 + 過        verb + guò"}, {"id": 69, "zh": "我好像在哪裡見過你。", "py": "Wǒ hǎoxiàng zài nǎlǐ jiàn guò nǐ.", "en": "I feel like I've met you somewhere.", "sec": "14 · 動詞 + 過        verb + guò"}, {"id": 70, "zh": "這種事我遇過好幾次。", "py": "Zhè zhǒng shì wǒ yù guò hǎo jǐ cì.", "en": "I've run into this sort of thing several times.", "sec": "14 · 動詞 + 過        verb + guò"}, {"id": 71, "zh": "我小的時候住在鄉下。", "py": "Wǒ xiǎo de shíhòu zhù zài xiāngxià.", "en": "When I was little I lived in the countryside.", "sec": "15 · …的時候        … de shíhòu"}, {"id": 72, "zh": "我到的時候，他已經走了。", "py": "Wǒ dào de shíhòu, tā yǐjīng zǒu le.", "en": "When I arrived, he had already left.", "sec": "15 · …的時候        … de shíhòu"}, {"id": 73, "zh": "我正在洗澡的時候，他打電話來。", "py": "Wǒ zhèngzài xǐzǎo de shíhòu, tā dǎ diànhuà lái.", "en": "He called while I was in the shower.", "sec": "15 · …的時候        … de shíhòu"}, {"id": 74, "zh": "那時候我還不會說中文。", "py": "Nà shíhòu wǒ hái bú huì shuō Zhōngwén.", "en": "At that time I still couldn't speak Chinese.", "sec": "15 · …的時候        … de shíhòu"}, {"id": 75, "zh": "吃飯的時候不要看手機。", "py": "Chīfàn de shíhòu búyào kàn shǒujī.", "en": "Don't look at your phone while eating.", "sec": "15 · …的時候        … de shíhòu"}, {"id": 76, "zh": "我一到就打給你。", "py": "Wǒ yí dào jiù dǎ gěi nǐ.", "en": "I'll call you as soon as I arrive.", "sec": "16 · 一…就…        yī … jiù …"}, {"id": 77, "zh": "他一看到我就跑了。", "py": "Tā yí kàndào wǒ jiù pǎo le.", "en": "The moment he saw me, he ran.", "sec": "16 · 一…就…        yī … jiù …"}, {"id": 78, "zh": "我一緊張就說不出話。", "py": "Wǒ yì jǐnzhāng jiù shuō bù chū huà.", "en": "Whenever I get nervous I can't speak.", "sec": "16 · 一…就…        yī … jiù …"}, {"id": 79, "zh": "一下課我們就走。", "py": "Yí xiàkè wǒmen jiù zǒu.", "en": "We'll leave as soon as class ends.", "sec": "16 · 一…就…        yī … jiù …"}, {"id": 80, "zh": "他一喝酒就話很多。", "py": "Tā yì hējiǔ jiù huà hěn duō.", "en": "He talks a lot as soon as he drinks.", "sec": "16 · 一…就…        yī … jiù …"}, {"id": 81, "zh": "我本來想去，後來太累就沒去。", "py": "Wǒ běnlái xiǎng qù, hòulái tài lèi jiù méi qù.", "en": "I'd planned to go, but later I was too tired so I didn't.", "sec": "17 · 本來…後來…        běnlái … hòulái …"}, {"id": 82, "zh": "我本來以為很難，後來發現很簡單。", "py": "Wǒ běnlái yǐwéi hěn nán, hòulái fāxiàn hěn jiǎndān.", "en": "I'd thought it was hard, but then I found it easy.", "sec": "17 · 本來…後來…        běnlái … hòulái …"}, {"id": 83, "zh": "我們本來說好七點。", "py": "Wǒmen běnlái shuō hǎo qī diǎn.", "en": "We'd originally agreed on seven.", "sec": "17 · 本來…後來…        běnlái … hòulái …"}, {"id": 84, "zh": "後來怎麼樣了？", "py": "Hòulái zěnmeyàng le?", "en": "What happened after that?", "sec": "17 · 本來…後來…        běnlái … hòulái …"}, {"id": 85, "zh": "後來我才知道他是誰。", "py": "Hòulái wǒ cái zhīdào tā shì shéi.", "en": "Only later did I find out who he was.", "sec": "17 · 本來…後來…        běnlái … hòulái …"}, {"id": 86, "zh": "結果他根本沒來。", "py": "Jiéguǒ tā gēnběn méi lái.", "en": "And in the end he didn't come at all.", "sec": "18 · 結果… / 沒想到…        jiéguǒ … / méi xiǎngdào …"}, {"id": 87, "zh": "沒想到會這麼順利。", "py": "Méi xiǎngdào huì zhème shùnlì.", "en": "I never thought it would go so smoothly.", "sec": "18 · 結果… / 沒想到…        jiéguǒ … / méi xiǎngdào …"}, {"id": 88, "zh": "誰知道下一秒就下雨了。", "py": "Shéi zhīdào xià yì miǎo jiù xiàyǔ le.", "en": "And who knew, the next second it started raining.", "sec": "18 · 結果… / 沒想到…        jiéguǒ … / méi xiǎngdào …"}, {"id": 89, "zh": "結果我們走了一個小時。", "py": "Jiéguǒ wǒmen zǒu le yí ge xiǎoshí.", "en": "We ended up walking for an hour.", "sec": "18 · 結果… / 沒想到…        jiéguǒ … / méi xiǎngdào …"}, {"id": 90, "zh": "突然，所有人都安靜了。", "py": "Túrán, suǒyǒu rén dōu ānjìng le.", "en": "Suddenly, everyone went quiet.", "sec": "18 · 結果… / 沒想到…        jiéguǒ … / méi xiǎngdào …"}, {"id": 91, "zh": "他跟我說他明天不來。", "py": "Tā gēn wǒ shuō tā míngtiān bù lái.", "en": "He told me he isn't coming tomorrow.", "sec": "19 · 他跟我說…        tā gēn wǒ shuō …"}, {"id": 92, "zh": "她告訴我那家店關了。", "py": "Tā gàosù wǒ nà jiā diàn guān le.", "en": "She told me that shop has closed.", "sec": "19 · 他跟我說…        tā gēn wǒ shuō …"}, {"id": 93, "zh": "他問我要不要一起去。", "py": "Tā wèn wǒ yào bú yào yìqǐ qù.", "en": "He asked me whether I wanted to go along.", "sec": "19 · 他跟我說…        tā gēn wǒ shuō …"}, {"id": 94, "zh": "我跟他說：「沒關係。」", "py": "Wǒ gēn tā shuō: \"Méi guānxi.\"", "en": "I said to him, \"It's fine.\"", "sec": "19 · 他跟我說…        tā gēn wǒ shuō …"}, {"id": 95, "zh": "聽說他要搬家了。", "py": "Tīngshuō tā yào bānjiā le.", "en": "I hear he's moving house.", "sec": "19 · 他跟我說…        tā gēn wǒ shuō …"}, {"id": 96, "zh": "我把門關起來了。", "py": "Wǒ bǎ mén guān qǐlái le.", "en": "I shut the door.", "sec": "20 · 把 + 受詞 + 動詞        bǎ + object + verb"}, {"id": 97, "zh": "他把我的咖啡喝完了。", "py": "Tā bǎ wǒ de kāfēi hē wán le.", "en": "He drank up my coffee.", "sec": "20 · 把 + 受詞 + 動詞        bǎ + object + verb"}, {"id": 98, "zh": "我不小心把手機弄壞了。", "py": "Wǒ bù xiǎoxīn bǎ shǒujī nòng huài le.", "en": "I accidentally broke my phone.", "sec": "20 · 把 + 受詞 + 動詞        bǎ + object + verb"}, {"id": 99, "zh": "請把東西放在這裡。", "py": "Qǐng bǎ dōngxi fàng zài zhèlǐ.", "en": "Please put the things here.", "sec": "20 · 把 + 受詞 + 動詞        bǎ + object + verb"}, {"id": 100, "zh": "我把錢包忘在家裡了。", "py": "Wǒ bǎ qiánbāo wàng zài jiālǐ le.", "en": "I left my wallet at home.", "sec": "20 · 把 + 受詞 + 動詞        bǎ + object + verb"}];
+
+        let displaySentences = [...rawSentences];
+        let currentIdx = 0;
+        let isAutoplayActive = false;
+        let synth = window.speechSynthesis;
+
+        function initVoices() {
+            let voices = synth.getVoices();
+            if (voices.length > 0) {
+                // 優先選擇 zh-TW 台灣繁體中文發音
+                const zhVoice = voices.find(v => v.lang === 'zh-TW') || 
+                                voices.find(v => v.lang.startsWith('zh-HK')) || 
+                                voices.find(v => v.lang.startsWith('zh'));
+                const statusEl = document.getElementById('voiceStatus');
+                if (zhVoice) {
+                    statusEl.innerText = `語音引擎：${zhVoice.name} (${zhVoice.lang})`;
+                    statusEl.className = "text-xs bg-emerald-700 px-3 py-1 rounded-full font-normal";
+                } else {
+                    statusEl.innerText = "語音引擎已就緒 (使用系統預設中文)";
+                    statusEl.className = "text-xs bg-emerald-700 px-3 py-1 rounded-full font-normal";
+                }
+            }
+        }
+
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = initVoices;
+        }
+
+        function renderList() {
+            const container = document.getElementById('sentenceList');
+            container.innerHTML = '';
+            
+            displaySentences.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.id = `card-${index}`;
+                card.className = `bg-white p-5 rounded-2xl shadow-sm border transition-all ${index === currentIdx ? 'border-teal-500 ring-2 ring-teal-100 bg-teal-50/20' : 'border-slate-100 hover:border-slate-200'}`;
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="space-y-1.5">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-teal-700 bg-teal-100/80 px-2.5 py-0.5 rounded-full">#${item.id}</span>
+                                ${item.sec ? `<span class="text-xs font-medium text-slate-500">${item.sec}</span>` : ''}
+                            </div>
+                            <h2 class="text-xl font-bold text-slate-900 pt-0.5">${item.zh}</h2>
+                            <p class="text-teal-800 text-sm font-semibold tracking-wide font-mono">${item.py}</p>
+                            <p class="text-slate-600 text-sm font-medium">${item.en}</p>
+                        </div>
+                        <button onclick="playSingle(${index})" class="bg-teal-600 hover:bg-teal-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm transition shrink-0 flex items-center gap-1">
+                            🔊 單句朗讀
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function scrollToCurrent() {
+            const el = document.getElementById(`card-${currentIdx}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function playSingle(index) {
+            unlockAudio();
+            isAutoplayActive = false;
+            currentIdx = index;
+            renderList();
+            scrollToCurrent();
+            playCurrentSentence();
+        }
+
+        function startAutoplay() {
+            unlockAudio();
+            isAutoplayActive = true;
+            renderList();
+            scrollToCurrent();
+            playCurrentSentence();
+        }
+
+        function unlockAudio() {
+            if (synth.paused) synth.resume();
+            let u = new SpeechSynthesisUtterance("");
+            synth.speak(u);
+        }
+
+        function playCurrentSentence() {
+            synth.cancel();
+
+            if (currentIdx >= displaySentences.length) return;
+
+            const item = displaySentences[currentIdx];
+            document.getElementById('currentPlayingText').innerText = `#${item.id} - ${item.zh} (${item.py})`;
+
+            const rate = parseFloat(document.getElementById('rateSelect').value);
+            const isRepeatOne = document.getElementById('repeatOneCheck').checked;
+
+            let voices = synth.getVoices();
+            // 優先選擇 zh-TW 繁體中文
+            let zhVoice = voices.find(v => v.lang === 'zh-TW') || 
+                          voices.find(v => v.lang.startsWith('zh-HK')) || 
+                          voices.find(v => v.lang.startsWith('zh')) || null;
+            
+            let enVoice = voices.find(v => v.lang === 'en-US') || 
+                          voices.find(v => v.lang.startsWith('en')) || null;
+
+            // 1. 朗讀繁體中文
+            speakText(item.zh, 'zh-TW', zhVoice, rate, () => {
+                // 2. 停頓 0.5 秒後朗讀英文對照
+                setTimeout(() => {
+                    speakText(item.en, 'en-US', enVoice, rate, () => {
+                        if (isRepeatOne) {
+                            setTimeout(playCurrentSentence, 800);
+                        } else if (isAutoplayActive) {
+                            if (currentIdx < displaySentences.length - 1) {
+                                currentIdx++;
+                                renderList();
+                                scrollToCurrent();
+                                setTimeout(playCurrentSentence, 1000);
+                            } else {
+                                isAutoplayActive = false;
+                                document.getElementById('currentPlayingText').innerText = "🎉 播放完畢！";
+                            }
+                        }
+                    });
+                }, 500);
+            });
+        }
+
+        function speakText(text, langCode, voiceObj, rate, callback) {
+            let utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = langCode;
+            if (voiceObj) utterance.voice = voiceObj;
+            utterance.rate = rate;
+            
+            utterance.onend = () => { if (callback) callback(); };
+            utterance.onerror = (e) => { 
+                console.error("TTS Error:", e);
+                if (callback) callback(); 
+            };
+
+            synth.speak(utterance);
+        }
+
+        function pauseAudio() {
+            isAutoplayActive = false;
+            synth.cancel();
+            document.getElementById('currentPlayingText').innerText = "已暫停播放";
+        }
+
+        function stopAudio() {
+            isAutoplayActive = false;
+            currentIdx = 0;
+            synth.cancel();
+            renderList();
+            document.getElementById('currentPlayingText').innerText = "已停止播放";
+        }
+
+        function nextSentence() {
+            if (currentIdx < displaySentences.length - 1) {
+                currentIdx++;
+                renderList();
+                scrollToCurrent();
+                playCurrentSentence();
+            }
+        }
+
+        function prevSentence() {
+            if (currentIdx > 0) {
+                currentIdx--;
+                renderList();
+                scrollToCurrent();
+                playCurrentSentence();
+            }
+        }
+
+        function filterSentences() {
+            const q = document.getElementById('searchInput').value.toLowerCase().trim();
+            displaySentences = rawSentences.filter(s => 
+                s.zh.toLowerCase().includes(q) || 
+                s.py.toLowerCase().includes(q) ||
+                s.en.toLowerCase().includes(q) || 
+                s.sec.toLowerCase().includes(q)
+            );
+            currentIdx = 0;
+            renderList();
+        }
+
+        window.onload = () => {
+            renderList();
+            initVoices();
+        };
+    </script>
+</body>
+</html>
